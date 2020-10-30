@@ -10,68 +10,17 @@ from typing import Tuple
 
 
 class SepCMA:
-    """Separable CMA-ES stochastic optimizer class with ask-and-tell interface.
-
-    Example:
-
-        .. code::
-
-           import numpy as np
-           from cmaes import SepCMA
-
-           def quadratic(x1, x2):
-               return (x1 - 3) ** 2 + (10 * (x2 + 2)) ** 2
-
-           optimizer = SepCMA(mean=np.zeros(2), sigma=1.3)
-
-           for generation in range(50):
-               solutions = []
-               for _ in range(optimizer.population_size):
-                   # Ask a parameter
-                   x = optimizer.ask()
-                   value = quadratic(x[0], x[1])
-                   solutions.append((x, value))
-                   print(f"#{generation} {value} (x1={x[0]}, x2 = {x[1]})")
-
-               # Tell evaluation values.
-               optimizer.tell(solutions)
-
-    Args:
-
-        mean:
-            Initial mean vector of multi-variate gaussian distributions.
-
-        sigma:
-            Initial standard deviation of covariance matrix.
-
-        bounds:
-            Lower and upper domain boundaries for each parameter (optional).
-
-        n_max_resampling:
-            A maximum number of resampling parameters (default: 100).
-            If all sampled parameters are infeasible, the last sampled one
-            will be clipped with lower and upper bounds.
-
-        seed:
-            A seed number (optional).
-
-        population_size:
-            A population size (optional).
-    """
-
     def __init__(
             self,
             mean: np.ndarray,
             sigma: float,
+            n_dim: int,
             bounds: Optional[np.ndarray] = None,
             n_max_resampling: int = 100,
             seed: Optional[int] = None,
             population_size: Optional[int] = None,
     ):
         assert sigma > 0, "sigma must be non-zero positive value"
-
-        n_dim = len(mean)
-        assert n_dim > 1, "The dimension of mean must be larger than 1"
 
         if population_size is None:
             population_size = 4 + math.floor(3 * math.log(n_dim))  # (eq. 48)
@@ -128,13 +77,13 @@ class SepCMA:
         self._weights = weights
 
         # evolution path
-        self._p_sigma = np.zeros(n_dim)
-        self._pc = np.zeros(n_dim)
+        self._p_sigma = np.zeros(1)
+        self._pc = np.zeros(1)
 
         self._mean = mean
         self._sigma = sigma
         self._D: Optional[np.ndarray] = None
-        self._C: np.ndarray = np.ones(n_dim)
+        self._C: np.ndarray = np.ones(1)
 
         # bounds contains low and high of each parameter.
         assert (
@@ -161,7 +110,7 @@ class SepCMA:
     @property
     def dim(self) -> int:
         """A number of dimensions"""
-        return self._n_dim
+        return 1
 
     @property
     def population_size(self) -> int:
@@ -213,7 +162,7 @@ class SepCMA:
 
     def _sample_solution(self) -> np.ndarray:
         D = self._eigen_decomposition()
-        z = self._rng.randn(self._n_dim)  # ~ N(0, I)
+        z = self._rng.randn(1)  # ~ N(0, I)
         y = D * z  # ~ N(0, C)
         x = self._mean + self._sigma * y  # ~ N(m, σ^2 C)
         return x
@@ -327,15 +276,6 @@ class SepCMA:
         # No effect coordinates: stop if adding 0.2-standard deviations
         # in any single coordinate does not change m.
         if np.any(self._mean == self._mean + (0.2 * self._sigma * np.sqrt(self._C))):
-            return True
-
-        # No effect axis: stop if adding 0.1-standard deviation vector in
-        # any principal axis direction of C does not change m. "pycma" check
-        # axis one by one at each generation.
-        i = self.generation % self.dim
-        if np.all(
-                self._mean == self._mean + (0.1 * self._sigma * D[i] * np.ones(self._n_dim))
-        ):
             return True
 
         # Stop if the condition number of the covariance matrix exceeds 1e14.
