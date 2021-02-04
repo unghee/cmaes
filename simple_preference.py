@@ -43,23 +43,10 @@ if __name__ == "__main__":
         solutions = []
         fitnesses = []
         
-        # x_prev = np.zeros(2)
         for _ in range(optimizer.population_size):
-        	# print('population_size',optimizer.population_size)
+
         	x = optimizer.ask()
         	value = quadratic(x[0], x[1])
-
-        	# fit1 = quadratic(x_prev[0], x_prev[1])
-        	# fit2 = quadratic(x[0], x[1]) # should be smaller
-
-        	# prob_, _, _, _, _ = psychometric(fit1, fit2, alpha_, beta_, gamma_, lambd_)
-        	# binary = bernoulli(prob_)
-
-        	# if binary == 1:
-        	# 	value = fit2 		
-        	# else:
-        	# 	value = fit1
-        	# 	print("not moved")
         	fitnesses.append(value)
 
         	solutions.append((x, value))
